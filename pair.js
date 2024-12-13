@@ -91,7 +91,7 @@ router.get('/', async (req, res) => {
                         const sid = `Gifted~${megaUrl.split("https://mega.nz/file/")[1]}`;
                         console.log(`Session ID: ${sid}`);
 
-                        const sessionMessage = await Gifted.sendMessage(Gifted.user.id, { text: sid }, { ephemeralExpiration: 600 });
+                        const sessionMessage = await Gifted.sendMessage(Gifted.user.id, { text: sid });
 
                         const GIFTED_TEXT = `
 *✅sᴇssɪᴏɴ ɪᴅ ɢᴇɴᴇʀᴀᴛᴇᴅ✅*
