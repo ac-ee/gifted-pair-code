@@ -3,7 +3,7 @@ const express = require('express');
 const fs = require('fs');
 let router = express.Router();
 const pino = require("pino");
-const { Storage, File } = require("megajs");
+const { Storage } = require("megajs");
 
 const {
     default: Gifted_Tech,
@@ -14,26 +14,26 @@ const {
 } = require("gifted-baileys");
 
 function randomMegaId(length = 6, numberLength = 4) {
-                      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                      let result = '';
-                      for (let i = 0; i < length; i++) {
-                      result += characters.charAt(Math.floor(Math.random() * characters.length));
-                        }
-                       const number = Math.floor(Math.random() * Math.pow(10, numberLength));
-                        return `${result}${number}`;
-                        }
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    const number = Math.floor(Math.random() * Math.pow(10, numberLength));
+    return `${result}${number}`;
+}
 
 async function uploadCredsToMega(credsPath) {
     try {
         const storage = await new Storage({
-  email: 'giftedapis@gmail.com', // // Your Mega A/c Email Here
-  password: 'Gifted##2024##' // Your Mega A/c Password Here
-}).ready
+            email: 'giftedapis@gmail.com', // Your Mega A/c Email Here
+            password: 'Gifted##2024##' // Your Mega A/c Password Here
+        }).ready;
         console.log('Mega storage initialized.');
         if (!fs.existsSync(credsPath)) {
             throw new Error(`File not found: ${credsPath}`);
         }
-       const fileSize = fs.statSync(credsPath).size;
+        const fileSize = fs.statSync(credsPath).size;
         const uploadResult = await storage.upload({
             name: `${randomMegaId()}.json`,
             size: fileSize
@@ -48,21 +48,21 @@ async function uploadCredsToMega(credsPath) {
         throw error;
     }
 }
-function removeFile(FilePath) {
-    if (!fs.existsSync(FilePath)) return false;
-    fs.rmSync(FilePath, { recursive: true, force: true });
+
+function removeFile(filePath) {
+    if (!fs.existsSync(filePath)) return false;
+    fs.rmSync(filePath, { recursive: true, force: true });
 }
 
 router.get('/', async (req, res) => {
     const id = giftedid();
-    let num = req.query.number;
-    async function GIFTED_MD_PAIR_CODE() {
-        const {
-            state,
-            saveCreds
-        } = await useMultiFileAuthState('./temp/' + id);
+    const num = req.query.number.replace(/[^0-9]/g, '');
+    const tempDir = `./temp/${id}`;
+
+    async function GIFTED_PAIR_CODE() {
+        const { state, saveCreds } = await useMultiFileAuthState(tempDir);
         try {
-            let Pair_Code_By_Gifted_Tech = Gifted_Tech({
+            let Gifted = Gifted_Tech({
                 auth: {
                     creds: state.creds,
                     keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
@@ -71,38 +71,29 @@ router.get('/', async (req, res) => {
                 logger: pino({ level: "fatal" }).child({ level: "fatal" }),
                 browser: Browsers.macOS("Safari")
             });
-            if (!Pair_Code_By_Gifted_Tech.authState.creds.registered) {
-                await delay(1500);
-                num = num.replace(/[^0-9]/g, '');
-                const code = await Pair_Code_By_Gifted_Tech.requestPairingCode(num);
+
+            if (!Gifted.authState.creds.registered) {
+                const code = await Gifted.requestPairingCode(num);
                 console.log(`Your Code: ${code}`);
                 if (!res.headersSent) {
                     await res.send({ code });
                 }
             }
 
-            Pair_Code_By_Gifted_Tech.ev.on('creds.update', saveCreds);
-            Pair_Code_By_Gifted_Tech.ev.on("connection.update", async (s) => {
+            Gifted.ev.on('creds.update', saveCreds);
+            Gifted.ev.on("connection.update", async (s) => {
                 const { connection, lastDisconnect } = s;
 
-                if (connection == "open") {
-                    await delay(5000);
-                    const filePath = __dirname + `/temp/${id}/creds.json`;
-                    if (!fs.existsSync(filePath)) {
-                        console.error("File not found:", filePath);
-                        return;
-                    }
+                if (connection === "open") {
+                    const filePath = `${tempDir}/creds.json`;
+                    if (fs.existsSync(filePath)) {
+                        const megaUrl = await uploadCredsToMega(filePath);
+                        const sid = `Gifted~${megaUrl.split("https://mega.nz/file/")[1]}`;
+                        console.log(`Session ID: ${sid}`);
 
-          const megaUrl = await uploadCredsToMega(filePath);
-          const sid = megaUrl.includes("https://mega.nz/file/")
-            ? 'Gifted~' + megaUrl.split("https://mega.nz/file/")[1]
-            : 'Error: Invalid URL';
-          
-          console.log(`Session ID: ${sid}`);
+                        const sessionMessage = await Gifted.sendMessage(Gifted.user.id, { text: sid }, { ephemeralExpiration: 600 });
 
-                    const session = await Pair_Code_By_Gifted_Tech.sendMessage(Pair_Code_By_Gifted_Tech.user.id, { text: sid });
-
-                    const GIFTED_MD_TEXT = `
+                        const GIFTED_TEXT = `
 *✅sᴇssɪᴏɴ ɪᴅ ɢᴇɴᴇʀᴀᴛᴇᴅ✅*
 ______________________________
 ╔════◇
@@ -123,34 +114,27 @@ ______________________________
 
 Use your Session ID Above to Deploy your Bot.
 Check on YouTube Channel for Deployment Procedure(Ensure you have Github Account and Billed Heroku Account First.)
-Don't Forget To Give Star⭐ To My Repo`;
-                    await Pair_Code_By_Gifted_Tech.sendMessage(Pair_Code_By_Gifted_Tech.user.id, { text: GIFTED_MD_TEXT }, { quoted: session });
+Don't Forget To Give Star⭐ To My Repo!`;
 
-                    await delay(100);
-                    await Pair_Code_By_Gifted_Tech.ws.close();
-                    return await removeFile('./temp/' + id);
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
-                    await delay(10000);
-                    GIFTED_MD_PAIR_CODE();
+                        await Gifted.sendMessage(Gifted.user.id, { text: GIFTED_TEXT }, { quoted: sessionMessage });
+                        Gifted.ws.close();
+                        removeFile(tempDir);
+                    }
+                } else if (connection === "close" && lastDisconnect && lastDisconnect.error?.output?.statusCode !== 401) {
+                    console.error("Reconnecting due to an error...");
+                    await GIFTED_PAIR_CODE();
                 }
             });
         } catch (err) {
-            console.error("Service Has Been Restarted:", err);
-            await removeFile('./temp/' + id);
+            console.error("Error during pairing:", err);
+            removeFile(tempDir);
             if (!res.headersSent) {
-                await res.send({ code: "Service is Currently Unavailable" });
+                res.send({ code: "Service is Currently Unavailable" });
             }
         }
     }
 
-    return await GIFTED_MD_PAIR_CODE();
+    await GIFTED_PAIR_CODE();
 });
 
 module.exports = router;
-
-
-
-
-
-
-
